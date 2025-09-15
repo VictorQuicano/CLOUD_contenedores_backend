@@ -39,7 +39,13 @@ INSTALLED_APPS = [
     'django.contrib.messages',
     'django.contrib.staticfiles',
     'rest_framework',
-    'api',
+    'rest_framework.authtoken',
+    'dj_rest_auth',
+    'dj_rest_auth.registration',
+    'django.contrib.sites',
+    'allauth',
+    'allauth.account',
+    'allauth.socialaccount',
 ]
 
 MIDDLEWARE = [
@@ -50,6 +56,7 @@ MIDDLEWARE = [
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
+    'allauth.account.middleware.AccountMiddleware',
 ]
 
 ROOT_URLCONF = 'config.urls'
@@ -81,7 +88,7 @@ DATABASES = {
         "NAME": os.getenv("POSTGRES_DB", "mydb"),
         "USER": os.getenv("POSTGRES_USER", "myuser"),
         "PASSWORD": os.getenv("POSTGRES_PASSWORD", "mypassword"),
-        "HOST": "db",  # OJO: este es el nombre del servicio en docker-compose
+        "HOST": "db",
         "PORT": 5432,
     }
 }
@@ -127,8 +134,30 @@ STATIC_URL = 'static/'
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
+# Configuración de REST Framework
 REST_FRAMEWORK = {
-    'DEFAULT_AUTHENTICATION_CLASSES': (
-        'rest_framework_simplejwt.authentication.JWTAuthentication',
-    ),
+    'DEFAULT_AUTHENTICATION_CLASSES': [
+        'rest_framework.authentication.TokenAuthentication',
+    ],
+    'DEFAULT_PERMISSION_CLASSES': [
+        'rest_framework.permissions.IsAuthenticated',
+    ],
+}
+
+SITE_ID = 1
+
+# Configuraciones de django-allauth (nueva versión)
+ACCOUNT_EMAIL_VERIFICATION = 'none'  # Cambia a 'mandatory' si quieres verificación por email
+ACCOUNT_LOGIN_METHODS = {'username', 'email'}  # Nueva configuración
+ACCOUNT_SIGNUP_FIELDS = ['email*', 'username*', 'password1*', 'password2*']  # Nueva configuración
+ACCOUNT_UNIQUE_EMAIL = True
+ACCOUNT_USER_MODEL_USERNAME_FIELD = 'username'
+ACCOUNT_USER_MODEL_EMAIL_FIELD = 'email'
+ACCOUNT_AUTHENTICATION_METHOD = "username"
+
+# Configuraciones adicionales de dj-rest-auth
+REST_AUTH = {
+    'USE_JWT': False,  # Cambiar a True si quieres usar JWT en lugar de tokens
+    'SESSION_LOGIN': False,
+    'REGISTER_SERIALIZER': 'dj_rest_auth.registration.serializers.RegisterSerializer',
 }
