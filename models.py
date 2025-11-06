@@ -6,6 +6,8 @@ from typing import List, Optional
 
 Base = declarative_base()
 
+
+
 class User(Base):
     __tablename__ = "users"
     user_id = Column(String, primary_key=True, index=True)
@@ -49,3 +51,27 @@ class CreateListeningRequest(BaseModel):
 
 class CreateListeningRandomRequest(BaseModel):
     user_id: str
+
+class TopCancionStats(BaseModel):
+    id: str
+    artist: str
+    song: str
+    album_name: Optional[str] = None
+    veces_escuchada: Optional[int] = None
+    timestamp: Optional[datetime] = None
+
+class TopUsuarioStats(BaseModel):
+    user_id: str
+    total_registros: int
+    primera_escucha: Optional[datetime] = None
+    ultima_escucha: Optional[datetime] = None
+    rango_fechas: Optional[str] = None
+
+class StatsResponse(BaseModel):
+    total_usuarios: int
+    canciones_mas_escuchadas: List[TopCancionStats]
+    canciones_mas_actuales: List[TopCancionStats]
+    top_usuarios: List[TopUsuarioStats]
+
+    class Config:
+        from_attributes = True
