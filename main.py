@@ -121,6 +121,106 @@ def get_user_stats(user_id: str, db: Session = Depends(get_db)):
         total_canciones_escuchadas=total_canciones,
         dia_mas_escuchado=dia_mas_escuchado_str
     )
+@app.get("/stats", response_model=StatsResponse)
+def get_global_stats(db: Session = Depends(get_db)):
+    """
+    Obtiene estadísticas globales de la plataforma:
+    - Número total de usuarios
+    - Canciones más escuchadas (top 10)
+    - Canciones más recientemente escuchadas (top 10)
+    - Top 5 usuarios con más registros, con conteo y rango de fechas
+    """
+    
+    # 1. Número total de usuarios
+    total_usuarios = db.query(User).count()
+    
+    # 2. Canciones más escuchadas (top 10)
+    canciones_mas_escuchadas = (
+        db.query(
+            Cancion.id,
+            Cancion.artist,
+            Cancion.song,
+            Cancion.album_name,
+            func.count(ListeningRecord.id).label('veces_escuchada')
+        )
+        .join(ListeningRecord, Cancion.id == ListeningRecord.song)
+        .group_by(Cancion.id, Cancion.artist, Cancion.song, Cancion.album_name)
+        .order_by(func.count(ListeningRecord.id).desc())
+        .limit(10)
+        .all()
+    )
+    
+    # Convertir a lista de diccionarios
+    top_canciones = [
+        {
+            "id": c.id,
+            "artist": c.artist,
+            "song": c.song,
+            "album_name": c.album_name,
+            "veces_escuchada": c.veces_escuchada
+        }
+        for c in canciones_mas_escuchadas
+    ]
+    
+    # 3. Canciones más actuales (últimas 10 escuchadas)
+    canciones_mas_actuales = (
+        db.query(
+            Cancion.id,
+            Cancion.artist,
+            Cancion.song,
+            Cancion.album_name,
+            ListeningRecord.timestamp
+        )
+        .join(ListeningRecord, Cancion.id == ListeningRecord.song)
+        .order_by(ListeningRecord.timestamp.desc())
+        .limit(10)
+        .all()
+    )
+    
+    # Convertir a lista de diccionarios
+    canciones_recientes = [
+        {
+            "id": c.id,
+            "artist": c.artist,
+            "song": c.song,
+            "album_name": c.album_name,
+            "timestamp": c.timestamp
+        }
+        for c in canciones_mas_actuales
+    ]
+    
+    # 4. Top 5 usuarios con más registros, con conteo y rango de fechas
+    top_usuarios_query = """
+        SELECT 
+            lr.user_id,
+            COUNT(lr.id) as total_registros,
+            MIN(lr.timestamp) as primera_escucha,
+            MAX(lr.timestamp) as ultima_escucha
+        FROM listening_records lr
+        GROUP BY lr.user_id
+        ORDER BY total_registros DESC
+        LIMIT 5
+    """
+    
+    top_usuarios_result = db.execute(text(top_usuarios_query)).fetchall()
+    
+    top_usuarios = [
+        {
+            "user_id": row.user_id,
+            "total_registros": row.total_registros,
+            "primera_escucha": row.primera_escucha,
+            "ultima_escucha": row.ultima_escucha,
+            "rango_fechas": f"{row.primera_escucha.strftime('%Y-%m-%d')} a {row.ultima_escucha.strftime('%Y-%m-%d')}" if row.primera_escucha and row.ultima_escucha else "N/A"
+        }
+        for row in top_usuarios_result
+    ]
+    
+    return StatsResponse(
+        total_usuarios=total_usuarios,
+        canciones_mas_escuchadas=top_canciones,
+        canciones_mas_actuales=canciones_recientes,
+        top_usuarios=top_usuarios
+    )
 
 @app.post("/listening", status_code=201)
 def create_listening_record(request: CreateListeningRequest, db: Session = Depends(get_db)):
